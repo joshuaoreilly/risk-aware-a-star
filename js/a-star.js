@@ -34,6 +34,20 @@ function fillMatrixDefault(matrix) {
 
 matrix = fillMatrixDefault(matrix);
 
+var nestDefault = {x: 50, y: 34}
+var sitesDefault = [
+    {x: 55, y: 40},
+    {x: 0, y: 24},
+    {x: 40, y: 30},
+    {x: 13, y: 27},
+    {x: 22, y: 30},
+    {x: 38, y: 20},
+    {x: 7, y: 35},
+    {x: 29, y: 42},
+    {x: 12, y: 50},
+    {x: 27, y: 38}
+]
+
 function matrixToArrayOfObjects(matrix) {
     var data = [];
     for (var i = 0; i < matrix.length; i++) {
@@ -51,6 +65,7 @@ function matrixToArrayOfObjects(matrix) {
 }
 
 var data = matrixToArrayOfObjects(matrix);
+var sites = sitesDefault;
 
 // https://stackoverflow.com/questions/44833788/making-svg-container-100-width-and-height-of-parent-container-in-d3-v4-instead
 var heatDiv = document.getElementById("heat")
@@ -71,7 +86,7 @@ const heatmapSvg = heatmapContainer.append("svg")
     .attr("height", svgHeight)
     .append("g");
 
-const heatmapColorScale = d3.scaleSequential(d3.interpolateViridis)
+const heatmapColorScale = d3.scaleSequential(d3.interpolateGnBu)
     .domain([0, d3.max(matrix, row => d3.max(row))]);
 
 // https://stackoverflow.com/questions/17343338/difference-between-functiond-and-functiond-i
@@ -84,7 +99,16 @@ heatmapSvg.selectAll("rect")
     .attr("height", cellHeight)
     .attr("fill", d => heatmapColorScale(d.value));
 
-/*
+heatmapSvg.append('g')
+    .selectAll("circle")
+    .data(sites)
+    .enter()
+    .append("circle")
+        .attr("cx", d => d.x * cellWidth + cellWidth / 2)
+        .attr("cy", d => d.y * cellHeight + cellHeight / 2)
+        .attr("r", 5) 
+        .attr("fill", "red")
+
 // Set up the line chart
 const lineSvg = heatmapContainer.append("svg")
     .attr("width", svgWidth)
@@ -108,4 +132,3 @@ heatmapSvg.append("path")
     .attr("fill", "none")
     .attr("stroke", "red")
     .attr("stroke-width", 2);
-    */
