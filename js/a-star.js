@@ -34,7 +34,7 @@ function fillMatrixDefault(matrix) {
 
 matrix = fillMatrixDefault(matrix);
 
-var nestDefault = {x: 50, y: 34}
+var nestDefault = [{x: 50, y: 24}]
 var sitesDefault = [
     {x: 55, y: 40},
     {x: 0, y: 24},
@@ -66,6 +66,7 @@ function matrixToArrayOfObjects(matrix) {
 
 var data = matrixToArrayOfObjects(matrix);
 var sites = sitesDefault;
+var nest = nestDefault;
 
 // https://stackoverflow.com/questions/44833788/making-svg-container-100-width-and-height-of-parent-container-in-d3-v4-instead
 var heatDiv = document.getElementById("heat")
@@ -109,26 +110,12 @@ heatmapSvg.append('g')
         .attr("r", 5) 
         .attr("fill", "red")
 
-// Set up the line chart
-const lineSvg = heatmapContainer.append("svg")
-    .attr("width", svgWidth)
-    .attr("height", svgHeight);
-
-const xScale = d3.scaleLinear()
-    .domain([0, lineData.length - 1])
-    .range([0, 500]);
-
-const yScale = d3.scaleLinear()
-    .domain([0, d3.max(lineData)])
-    .range([100, 0]);
-
-const line = d3.line()
-    .x((d, i) => xScale(i))
-    .y(d => yScale(d));
-
-heatmapSvg.append("path")
-    .datum(lineData)
-    .attr("d", line)
-    .attr("fill", "none")
-    .attr("stroke", "red")
-    .attr("stroke-width", 2);
+heatmapSvg.append('g')
+    .selectAll("circle")
+    .data(nest)
+    .enter()
+    .append("circle")
+        .attr("cx", d => d.x * cellWidth + cellWidth / 2)
+        .attr("cy", d => d.y * cellHeight + cellHeight / 2)
+        .attr("r", 10)
+        .attr("fill", "blue")
