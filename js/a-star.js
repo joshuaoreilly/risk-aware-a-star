@@ -149,7 +149,7 @@ function plan_paths(map, nest, sites) {
         // Coordinates of previous point in the optimal path to the current position
         parent = new Map();
         // List of position to visit, sorted by lowest combined cost-to-go and cost-to-reach (w/ penalty)
-        var to_visit = "TODO"; // SHOULD BE A PRIORITY QUEUE
+        var to_visit = "TODO"; // TODO: SHOULD BE A PRIORITY QUEUE
 
         // Initialize with nest as current position
         cost_to_reach.set(getHash(nest), 0.0);
