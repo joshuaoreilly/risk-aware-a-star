@@ -34,7 +34,7 @@ function fillMatrixDefault(matrix) {
 
 matrix = fillMatrixDefault(matrix);
 
-var nestDefault = [{x: 50, y: 24}]
+var nestDefault = {x: 50, y: 24}
 var sitesDefault = [
     {x: 55, y: 40},
     {x: 0, y: 24},
@@ -64,7 +64,7 @@ function matrixToArrayOfObjects(matrix) {
     return data;
 }
 
-var data = matrixToArrayOfObjects(matrix);
+var map = matrixToArrayOfObjects(matrix);
 var sites = sitesDefault;
 var nest = nestDefault;
 
@@ -92,7 +92,7 @@ const heatmapColorScale = d3.scaleSequential(d3.interpolateGnBu)
 
 // https://stackoverflow.com/questions/17343338/difference-between-functiond-and-functiond-i
 heatmapSvg.selectAll("rect")
-    .data(data)
+    .data(map)
     .enter().append("rect")
     .attr("x", d => d.col * cellWidth)
     .attr("y", d => d.row * cellHeight)
@@ -100,6 +100,7 @@ heatmapSvg.selectAll("rect")
     .attr("height", cellHeight)
     .attr("fill", d => heatmapColorScale(d.value));
 
+// TODO: more intelligent circle radius calculation, so that it balances not being too large, but also not shrinking too much if on a smaller screen
 heatmapSvg.append('g')
     .selectAll("circle")
     .data(sites)
@@ -107,7 +108,7 @@ heatmapSvg.append('g')
     .append("circle")
         .attr("cx", d => d.x * cellWidth + cellWidth / 2)
         .attr("cy", d => d.y * cellHeight + cellHeight / 2)
-        .attr("r", 5) 
+        .attr("r", Math.floor(cellWidth / 2))
         .attr("fill", "red")
 
 heatmapSvg.append('g')
@@ -117,5 +118,65 @@ heatmapSvg.append('g')
     .append("circle")
         .attr("cx", d => d.x * cellWidth + cellWidth / 2)
         .attr("cy", d => d.y * cellHeight + cellHeight / 2)
-        .attr("r", 10)
+        .attr("r", cellWidth)
         .attr("fill", "blue")
+
+var testline = [
+    {x: 20, y: 20},
+    {x: 20, y: 25},
+    {x: 20, y: 30}
+]
+
+const lineGenerator = d3.line()
+    .x(d => d.x * cellWidth + cellWidth / 2)
+    .y(d => d.y * cellHeight + cellHeight / 2);
+
+heatmapSvg.append("path")
+    .datum(testline)
+    .attr("d", lineGenerator(testline))
+    .attr("fill", "none")
+    .attr("stroke", "red")
+    .attr("stroke-width", 2);
+
+function plan_paths(map, nest, sites) {
+    for (const site of sites) {
+        // Distance from nest to current position along optimal path so far
+        var cost_to_reach = new Map();
+        // Distance from nest to current position along optimal path so far, including penalty for traversing high risk areas
+        var cost_to_reach_penalized = new Map();
+        // (Heuristic) distance from current position to delivery site, as the crow flies
+        var cost_to_go = new Map();
+        // Coordinates of previous point in the optimal path to the current position
+        parent = new Map();
+        // List of position to visit, sorted by lowest combined cost-to-go and cost-to-reach (w/ penalty)
+        var to_visit = "TODO"; // SHOULD BE A PRIORITY QUEUE
+
+        // Initialize with nest as current position
+        cost_to_reach.set(getHash(nest), 0.0);
+        cost_to_reach_penalized.set(getHash(nest), 0.0);
+        cost_to_go.set(getHash(nest), norm(nest, site));
+        parent.set(getHash(nest), null);
+    }
+}
+
+
+/**
+ * Hashes coordinates for insertion in maps
+ * @param {Object} position object mapping x and y to Numbers
+ * @returns {String} hashed coordinates
+ */
+function getHash(position) {
+    // unique hash for given coordinates
+    return ("x" + position.x.toString() + "y" + position.y.toString());
+}
+
+
+/**
+ * Euclidian norm between two positions
+ * @param {Object} pos1 mapping x and y to numbers
+ * @param {Object} pos2 mapping x and y to numbers
+ * @returns {Number} euclidian norm between positions
+ */
+function norm(pos1, pos2) {
+    return Math.sqrt((pos1.x - pos2.x)**2 + (pos1.y - pos2.y)**2)
+}
