@@ -5,7 +5,7 @@ const seedParagraph = document.getElementById("seedParagraph");
 const gridDim = 60;
 const KEEP_OUT_VALUE = 2;
 var HIGH_RISK_PENALTY = 0.0;
-var MAXIMUM_RANGE = 100;
+var MAX_RANGE = 1000;
 
 seedButton.addEventListener("click", updateSeed);
 
@@ -130,7 +130,6 @@ var testline = [
     {x: 20, y: 30}
 ]
 
-console.log("POTATO")
 
 const lineGenerator = d3.line()
     .x(d => d.x * cellWidth + cellWidth / 2)
@@ -143,10 +142,11 @@ heatmapSvg.append("path")
     .attr("stroke", "red")
     .attr("stroke-width", 2);
 
-plan_paths(map, nest, sites);
+plan_paths(matrix, nest, sites);
 
 function plan_paths(map, nest, sites) {
     for (const site of sites) {
+        console.log('Site: ' + site.x + ', ' + site.y);
         var siteHash = getHash(site);
         // Distance from nest to current position along optimal path so far
         var cost_to_reach = new Map();
@@ -165,31 +165,33 @@ function plan_paths(map, nest, sites) {
         cost_to_reach_penalized.set(nestHash, 0.0);
         cost_to_go.set(nestHash, norm(nest, site));
         parent.set(nestHash, null);
-        to_visit.push(nestHash, cost_to_reach_penalized.get(nestHash) + cost_to_go.get(nestHash));
+        to_visit.push(nest, cost_to_reach_penalized.get(nestHash) + cost_to_go.get(nestHash));
 
         var valid_path_found = false;
         while (to_visit.length != 0) {
-            var currentPositionHash = to_visit.pop();
+            var currentPosition = to_visit.pop();
+            var currentPositionHash = getHash(currentPosition);
             // Found delivery site, generate path
             if (currentPositionHash === siteHash) {
-                valid_path_found = True;
+                valid_path_found = true;
                 console.log("Path found for site " + siteHash);
+                break;
             }
             else {
-                var neighbors = getNeighbors(site, map);
+                var neighbors = getNeighbors(currentPosition, map);
                 for (const neighbor of neighbors) {
                     var neighborHash = getHash(neighbor);
-                    var new_cost_to_reach = cost_to_reach.get(siteHash) + norm(site, neighbor);
-                    var new_cost_to_reach_penalized = cost_to_reach_penalized.get(siteHash) + norm(site, neighbor) + map[site.y][site.x] * HIGH_RISK_PENALTY;
+                    var new_cost_to_reach = cost_to_reach.get(currentPositionHash) + norm(currentPosition, neighbor);
+                    var new_cost_to_reach_penalized = cost_to_reach_penalized.get(currentPositionHash) + norm(currentPosition, neighbor) + map[site.y][site.x] * HIGH_RISK_PENALTY;
                     cost_to_go.set(neighborHash, norm(neighbor, site));
                     // Neighbor hasn't been visited or new cost to reach (w/ penalty) is lower,
                     // and the total path length (w/ norm cost-to-go) doesn't exceed max range
                     if ((!cost_to_reach.has(neighborHash) || new_cost_to_reach_penalized < cost_to_reach_penalized.get(neighborHash)) &&
-                        new_cost_to_reach + cost_to_go.get(neighborHash) <= MAXIMUM_RANGE) {
+                        new_cost_to_reach + cost_to_go.get(neighborHash) <= MAX_RANGE) {
                             cost_to_reach.set(neighborHash, new_cost_to_reach);
                             cost_to_reach_penalized.set(neighborHash, new_cost_to_reach_penalized);
                             parent.set(neighborHash, currentPositionHash);
-                            to_visit.put(neighbor, new_cost_to_reach_penalized + cost_to_go.get(neighborHash));
+                            to_visit.push(neighbor, new_cost_to_reach_penalized + cost_to_go.get(neighborHash));
                     }
                 }
             }
@@ -197,10 +199,13 @@ function plan_paths(map, nest, sites) {
         if (! valid_path_found) {
             console.log('No valid path found for site ' + siteHash);
         }
+        else {
+            console.log('We did it patrick!');
+        }
+    //break;
     }
 }
 
-console.log("Sweet Potato");
 
 /**
  * Hashes coordinates for insertion in maps
@@ -238,7 +243,7 @@ function getNeighbors(pos, map) {
         {x: pos.x-1, y: pos.y-1}, {x: pos.x-1, y: pos.y}, {x: pos.x-1, y: pos.y+1}
     ]
     const valid_neighbors = [];
-    for (const neighbor in neighbors) {
+    for (const neighbor of neighbors) {
         if (neighbor.x >= 0 && neighbor.x < map[0].length &&
             neighbor.y >= 0 && neighbor.y < map.length &&
             map[neighbor.y][neighbor.x] != KEEP_OUT_VALUE) {
