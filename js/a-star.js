@@ -3,6 +3,9 @@ const seedButton = document.getElementById("seedButton");
 const seedParagraph = document.getElementById("seedParagraph");
 
 const gridDim = 60;
+const KEEP_OUT_VALUE = 2;
+var HIGH_RISK_PENALTY = 0.0;
+var MAXIMUM_RANGE = 100;
 
 seedButton.addEventListener("click", updateSeed);
 
@@ -25,7 +28,7 @@ function fillMatrixDefault(matrix) {
                 matrix[i][j] = 1;
             }
             if (((i - (rows / 2))**2 + (j - (cols / 2))**2) < (Math.min(rows, cols))) {
-                matrix[i][j] = 2;
+                matrix[i][j] = KEEP_OUT_VALUE;
             }
         }
     }
@@ -127,6 +130,8 @@ var testline = [
     {x: 20, y: 30}
 ]
 
+console.log("POTATO")
+
 const lineGenerator = d3.line()
     .x(d => d.x * cellWidth + cellWidth / 2)
     .y(d => d.y * cellHeight + cellHeight / 2);
@@ -138,8 +143,11 @@ heatmapSvg.append("path")
     .attr("stroke", "red")
     .attr("stroke-width", 2);
 
+plan_paths(map, nest, sites);
+
 function plan_paths(map, nest, sites) {
     for (const site of sites) {
+        var siteHash = getHash(site);
         // Distance from nest to current position along optimal path so far
         var cost_to_reach = new Map();
         // Distance from nest to current position along optimal path so far, including penalty for traversing high risk areas
@@ -149,16 +157,50 @@ function plan_paths(map, nest, sites) {
         // Coordinates of previous point in the optimal path to the current position
         parent = new Map();
         // List of position to visit, sorted by lowest combined cost-to-go and cost-to-reach (w/ penalty)
-        var to_visit = "TODO"; // TODO: SHOULD BE A PRIORITY QUEUE
+        const to_visit = new FlatQueue();
 
         // Initialize with nest as current position
-        cost_to_reach.set(getHash(nest), 0.0);
-        cost_to_reach_penalized.set(getHash(nest), 0.0);
-        cost_to_go.set(getHash(nest), norm(nest, site));
-        parent.set(getHash(nest), null);
+        const nestHash = getHash(nest);
+        cost_to_reach.set(nestHash, 0.0);
+        cost_to_reach_penalized.set(nestHash, 0.0);
+        cost_to_go.set(nestHash, norm(nest, site));
+        parent.set(nestHash, null);
+        to_visit.push(nestHash, cost_to_reach_penalized.get(nestHash) + cost_to_go.get(nestHash));
+
+        var valid_path_found = false;
+        while (to_visit.length != 0) {
+            var currentPositionHash = to_visit.pop();
+            // Found delivery site, generate path
+            if (currentPositionHash === siteHash) {
+                valid_path_found = True;
+                console.log("Path found for site " + siteHash);
+            }
+            else {
+                var neighbors = getNeighbors(site, map);
+                for (const neighbor of neighbors) {
+                    var neighborHash = getHash(neighbor);
+                    var new_cost_to_reach = cost_to_reach.get(siteHash) + norm(site, neighbor);
+                    var new_cost_to_reach_penalized = cost_to_reach_penalized.get(siteHash) + norm(site, neighbor) + map[site.y][site.x] * HIGH_RISK_PENALTY;
+                    cost_to_go.set(neighborHash, norm(neighbor, site));
+                    // Neighbor hasn't been visited or new cost to reach (w/ penalty) is lower,
+                    // and the total path length (w/ norm cost-to-go) doesn't exceed max range
+                    if ((!cost_to_reach.has(neighborHash) || new_cost_to_reach_penalized < cost_to_reach_penalized.get(neighborHash)) &&
+                        new_cost_to_reach + cost_to_go.get(neighborHash) <= MAXIMUM_RANGE) {
+                            cost_to_reach.set(neighborHash, new_cost_to_reach);
+                            cost_to_reach_penalized.set(neighborHash, new_cost_to_reach_penalized);
+                            parent.set(neighborHash, currentPositionHash);
+                            to_visit.put(neighbor, new_cost_to_reach_penalized + cost_to_go.get(neighborHash));
+                    }
+                }
+            }
+        }
+        if (! valid_path_found) {
+            console.log('No valid path found for site ' + siteHash);
+        }
     }
 }
 
+console.log("Sweet Potato");
 
 /**
  * Hashes coordinates for insertion in maps
@@ -179,4 +221,29 @@ function getHash(position) {
  */
 function norm(pos1, pos2) {
     return Math.sqrt((pos1.x - pos2.x)**2 + (pos1.y - pos2.y)**2)
+}
+
+
+/**
+ * List of neighboring positions which are 1. within bounds and 2. not
+ * within the "Keep Out" zone
+ * @param {Object} pos mapping x and y to numbers
+ * @param {Object} map 2D array containing risk values
+ * @returns {Object}
+ */
+function getNeighbors(pos, map) {
+    const neighbors = [
+        {x: pos.x+1, y: pos.y-1}, {x: pos.x+1, y: pos.y}, {x: pos.x+1, y: pos.y+1},
+        {x: pos.x, y: pos.y-1}, {x: pos.x, y: pos.y+1},
+        {x: pos.x-1, y: pos.y-1}, {x: pos.x-1, y: pos.y}, {x: pos.x-1, y: pos.y+1}
+    ]
+    const valid_neighbors = [];
+    for (const neighbor in neighbors) {
+        if (neighbor.x >= 0 && neighbor.x < map[0].length &&
+            neighbor.y >= 0 && neighbor.y < map.length &&
+            map[neighbor.y][neighbor.x] != KEEP_OUT_VALUE) {
+                valid_neighbors.push(neighbor);
+        }
+    }
+    return valid_neighbors;
 }
