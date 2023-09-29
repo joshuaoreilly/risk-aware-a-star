@@ -116,7 +116,7 @@ heatmapSvg.append('g')
 
 heatmapSvg.append('g')
     .selectAll("circle")
-    .data(nest)
+    .data([nest])
     .enter()
     .append("circle")
         .attr("cx", d => d.x * cellWidth + cellWidth / 2)
