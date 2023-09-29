@@ -39,8 +39,8 @@ matrix = fillMatrixDefault(matrix);
 
 var nestDefault = {x: 50, y: 24}
 var sitesDefault = [
-    {x: 55, y: 40},
     {x: 0, y: 24},
+    {x: 55, y: 40},
     {x: 40, y: 30},
     {x: 13, y: 27},
     {x: 22, y: 30},
@@ -163,15 +163,15 @@ function plan_paths(map, nest, sites, svg) {
             }
             else {
                 var neighbors = getNeighbors(currentPosition, map);
-                for (const neighbor of neighbors) {
+                for (const neighbor of neighbors) {                    
                     var neighborHash = getHash(neighbor);
                     var new_cost_to_reach = cost_to_reach.get(currentPositionHash) + norm(currentPosition, neighbor);
-                    var new_cost_to_reach_penalized = cost_to_reach_penalized.get(currentPositionHash) + norm(currentPosition, neighbor) + map[site.y][site.x] * HIGH_RISK_PENALTY;
+                    var new_cost_to_reach_penalized = cost_to_reach_penalized.get(currentPositionHash) + norm(currentPosition, neighbor) + (map[neighbor.y][neighbor.x] * HIGH_RISK_PENALTY);
                     cost_to_go.set(neighborHash, norm(neighbor, site));
                     // Neighbor hasn't been visited or new cost to reach (w/ penalty) is lower,
                     // and the total path length (w/ norm cost-to-go) doesn't exceed max range
                     if ((!cost_to_reach.has(neighborHash) || new_cost_to_reach_penalized < cost_to_reach_penalized.get(neighborHash)) &&
-                        new_cost_to_reach + cost_to_go.get(neighborHash) <= MAX_RANGE) {
+                        (new_cost_to_reach + cost_to_go.get(neighborHash) <= MAX_RANGE)) {
                             cost_to_reach.set(neighborHash, new_cost_to_reach);
                             cost_to_reach_penalized.set(neighborHash, new_cost_to_reach_penalized);
                             parent.set(neighborHash,
@@ -262,7 +262,7 @@ function drawPath(path, svg) {
         .x(d => d.x * cellWidth + cellWidth / 2)
         .y(d => d.y * cellHeight + cellHeight / 2);
 
-    heatmapSvg.append("path")
+    svg.append("path")
         .datum(path)
         .attr("d", lineGenerator(path))
         .attr("fill", "none")
