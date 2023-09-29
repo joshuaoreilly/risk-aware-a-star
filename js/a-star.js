@@ -5,7 +5,7 @@ const seedParagraph = document.getElementById("seedParagraph");
 const gridDim = 60;
 const KEEP_OUT_VALUE = 2;
 var HIGH_RISK_PENALTY = 0.0;
-var MAX_RANGE = 1000;
+var MAX_RANGE = 100000;
 
 seedButton.addEventListener("click", updateSeed);
 
@@ -124,27 +124,10 @@ heatmapSvg.append('g')
         .attr("r", cellWidth)
         .attr("fill", "blue")
 
-var testline = [
-    {x: 20, y: 20},
-    {x: 20, y: 25},
-    {x: 20, y: 30}
-]
 
+plan_paths(matrix, nest, sites, heatmapSvg);
 
-const lineGenerator = d3.line()
-    .x(d => d.x * cellWidth + cellWidth / 2)
-    .y(d => d.y * cellHeight + cellHeight / 2);
-
-heatmapSvg.append("path")
-    .datum(testline)
-    .attr("d", lineGenerator(testline))
-    .attr("fill", "none")
-    .attr("stroke", "red")
-    .attr("stroke-width", 2);
-
-plan_paths(matrix, nest, sites);
-
-function plan_paths(map, nest, sites) {
+function plan_paths(map, nest, sites, svg) {
     for (const site of sites) {
         console.log('Site: ' + site.x + ', ' + site.y);
         var siteHash = getHash(site);
@@ -175,6 +158,7 @@ function plan_paths(map, nest, sites) {
             if (currentPositionHash === siteHash) {
                 valid_path_found = true;
                 console.log("Path found for site " + siteHash);
+                drawPath(getPath(parent, site, siteHash), svg);
                 break;
             }
             else {
@@ -190,7 +174,11 @@ function plan_paths(map, nest, sites) {
                         new_cost_to_reach + cost_to_go.get(neighborHash) <= MAX_RANGE) {
                             cost_to_reach.set(neighborHash, new_cost_to_reach);
                             cost_to_reach_penalized.set(neighborHash, new_cost_to_reach_penalized);
-                            parent.set(neighborHash, currentPositionHash);
+                            parent.set(neighborHash,
+                                {  
+                                    parentHash: currentPositionHash,
+                                    parentPosition: currentPosition
+                                });
                             to_visit.push(neighbor, new_cost_to_reach_penalized + cost_to_go.get(neighborHash));
                     }
                 }
@@ -251,4 +239,33 @@ function getNeighbors(pos, map) {
         }
     }
     return valid_neighbors;
+}
+
+
+function getPath(parent, site, siteHash) {
+    var path = [];
+    var currentPosition = site;
+    var currentPositionHash = siteHash;
+    while (parent.get(currentPositionHash) != null) {
+        path.push(currentPosition);
+        var parentObj = parent.get(currentPositionHash);
+        currentPosition = parentObj.parentPosition;
+        currentPositionHash = parentObj.parentHash;
+    }
+    // add the nest
+    path.push(currentPosition);
+    return path;
+}
+
+function drawPath(path, svg) {
+    const lineGenerator = d3.line()
+        .x(d => d.x * cellWidth + cellWidth / 2)
+        .y(d => d.y * cellHeight + cellHeight / 2);
+
+    heatmapSvg.append("path")
+        .datum(path)
+        .attr("d", lineGenerator(path))
+        .attr("fill", "none")
+        .attr("stroke", "red")
+        .attr("stroke-width", 2);
 }
