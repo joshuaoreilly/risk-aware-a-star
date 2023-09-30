@@ -4,8 +4,8 @@ const seedParagraph = document.getElementById("seedParagraph");
 
 const gridDim = 60;
 const KEEP_OUT_VALUE = 2;
-var HIGH_RISK_PENALTY = 0.0;
-var MAX_RANGE = 100000;
+var HIGH_RISK_PENALTY = 1000000.0;
+var MAX_RANGE = 51.7; // It works with 51.7, but not with 52 or 60!
 
 seedButton.addEventListener("click", updateSeed);
 
@@ -36,6 +36,17 @@ function fillMatrixDefault(matrix) {
 }
 
 matrix = fillMatrixDefault(matrix);
+/*
+matrix = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 1, 2, 1, 0, 0, 0],
+            [0, 0, 1, 2, 2, 2, 1, 0, 0],
+            [0, 0, 0, 1, 2, 1, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0]];
+*/
 
 var nestDefault = {x: 50, y: 24}
 var sitesDefault = [
@@ -67,9 +78,11 @@ function matrixToArrayOfObjects(matrix) {
     return data;
 }
 
-var map = matrixToArrayOfObjects(matrix);
+var matrixObjectForm = matrixToArrayOfObjects(matrix);
 var sites = sitesDefault;
 var nest = nestDefault;
+//var sites = [{x: 0, y: 3}];
+//var nest = {x: 8, y: 3};
 
 // https://stackoverflow.com/questions/44833788/making-svg-container-100-width-and-height-of-parent-container-in-d3-v4-instead
 var heatDiv = document.getElementById("heat")
@@ -95,7 +108,7 @@ const heatmapColorScale = d3.scaleSequential(d3.interpolateGnBu)
 
 // https://stackoverflow.com/questions/17343338/difference-between-functiond-and-functiond-i
 heatmapSvg.selectAll("rect")
-    .data(map)
+    .data(matrixObjectForm)
     .enter().append("rect")
     .attr("x", d => d.col * cellWidth)
     .attr("y", d => d.row * cellHeight)
@@ -167,13 +180,16 @@ function plan_paths(map, nest, sites, svg) {
                     var neighborHash = getHash(neighbor);
                     var new_cost_to_reach = cost_to_reach.get(currentPositionHash) + norm(currentPosition, neighbor);
                     var new_cost_to_reach_penalized = cost_to_reach_penalized.get(currentPositionHash) + norm(currentPosition, neighbor) + (map[neighbor.y][neighbor.x] * HIGH_RISK_PENALTY);
-                    cost_to_go.set(neighborHash, norm(neighbor, site));
+                    var new_cost_to_go = norm(neighbor, site);
+                    //cost_to_go.set(neighborHash, norm(neighbor, site));
+
                     // Neighbor hasn't been visited or new cost to reach (w/ penalty) is lower,
                     // and the total path length (w/ norm cost-to-go) doesn't exceed max range
                     if ((!cost_to_reach.has(neighborHash) || new_cost_to_reach_penalized < cost_to_reach_penalized.get(neighborHash)) &&
-                        (new_cost_to_reach + cost_to_go.get(neighborHash) <= MAX_RANGE)) {
+                        (new_cost_to_reach + new_cost_to_go <= MAX_RANGE)) {
                             cost_to_reach.set(neighborHash, new_cost_to_reach);
                             cost_to_reach_penalized.set(neighborHash, new_cost_to_reach_penalized);
+                            cost_to_go.set(neighborHash, new_cost_to_go);
                             parent.set(neighborHash,
                                 {  
                                     parentHash: currentPositionHash,
@@ -230,6 +246,13 @@ function getNeighbors(pos, map) {
         {x: pos.x, y: pos.y-1}, {x: pos.x, y: pos.y+1},
         {x: pos.x-1, y: pos.y-1}, {x: pos.x-1, y: pos.y}, {x: pos.x-1, y: pos.y+1}
     ]
+   /*
+    const neighbors = [
+        {x: pos.x+1, y: pos.y},
+        {x: pos.x, y: pos.y-1}, {x: pos.x, y: pos.y+1},
+        {x: pos.x-1, y: pos.y}
+    ]
+    */
     const valid_neighbors = [];
     for (const neighbor of neighbors) {
         if (neighbor.x >= 0 && neighbor.x < map[0].length &&
