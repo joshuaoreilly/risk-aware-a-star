@@ -142,7 +142,6 @@ plan_paths(matrix, nest, sites, heatmapSvg);
 
 function plan_paths(map, nest, sites, svg) {
     for (const site of sites) {
-        console.log('Site: ' + site.x + ', ' + site.y);
         var siteHash = getHash(site);
         // Distance from nest to current position along optimal path so far
         var cost_to_reach = new Map();
@@ -170,7 +169,6 @@ function plan_paths(map, nest, sites, svg) {
             // Found delivery site, generate path
             if (currentPositionHash === siteHash) {
                 valid_path_found = true;
-                console.log("Path found for site " + siteHash);
                 drawPath(getPath(parent, site, siteHash), svg);
                 break;
             }
@@ -201,10 +199,10 @@ function plan_paths(map, nest, sites, svg) {
             }
         }
         if (! valid_path_found) {
-            console.log('No valid path found for site ' + siteHash);
+            console.log("No valid path found for site " + siteHash);
         }
         else {
-            console.log('We did it patrick!');
+            console.log("Valid path found for site " + siteHash);
         }
     //break;
     }
