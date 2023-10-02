@@ -1,17 +1,21 @@
+/*
 const seedText = document.getElementById("seedText");
 const seedButton = document.getElementById("seedButton");
 const seedParagraph = document.getElementById("seedParagraph");
+seedButton.addEventListener("click", updateSeed);
+function updateSeed() {
+    seedParagraph.textContent = "Seed is: " + seedText.value;
+}
+*/
+
+const riskMultiplierText = document.getElementById("riskMultiplierText");
+const maxRangeText = document.getElementById("maxRangeText");
+const planButton = document.getElementById("planButton");
 
 const gridDim = 60;
 const KEEP_OUT_VALUE = 2;
 var HIGH_RISK_PENALTY = 1000000.0;
 var MAX_RANGE = 51.7; // It works with 51.7, but not with 52 or 60!
-
-seedButton.addEventListener("click", updateSeed);
-
-function updateSeed() {
-    seedParagraph.textContent = "Seed is: " + seedText.value;
-}
 
 // https://jsfiddle.net/btjsxzo3/18/
 var rows = 60,
@@ -85,7 +89,7 @@ var nest = nestDefault;
 //var nest = {x: 8, y: 3};
 
 // https://stackoverflow.com/questions/44833788/making-svg-container-100-width-and-height-of-parent-container-in-d3-v4-instead
-var heatDiv = document.getElementById("heat")
+var heatDiv = document.getElementById("map")
 
 var svgWidth = heatDiv.clientWidth;
 var svgHeight = svgWidth;
@@ -97,8 +101,8 @@ var cellWidth = svgWidth / matrix[0].length,
 const lineData = [20, 40, 60, 80, 100];
 
 // Set up the heatmap
-const heatmapContainer = d3.select(heatDiv);
-const heatmapSvg = heatmapContainer.append("svg")
+const mapContainer = d3.select(heatDiv);
+const mapSvg = mapContainer.append("svg")
     .attr("width", svgWidth)
     .attr("height", svgHeight)
     .append("g");
@@ -107,7 +111,7 @@ const heatmapColorScale = d3.scaleSequential(d3.interpolateGnBu)
     .domain([0, d3.max(matrix, row => d3.max(row))]);
 
 // https://stackoverflow.com/questions/17343338/difference-between-functiond-and-functiond-i
-heatmapSvg.selectAll("rect")
+mapSvg.selectAll("rect")
     .data(matrixObjectForm)
     .enter().append("rect")
     .attr("x", d => d.col * cellWidth)
@@ -117,7 +121,7 @@ heatmapSvg.selectAll("rect")
     .attr("fill", d => heatmapColorScale(d.value));
 
 // TODO: more intelligent circle radius calculation, so that it balances not being too large, but also not shrinking too much if on a smaller screen
-heatmapSvg.append('g')
+mapSvg.append('g')
     .selectAll("circle")
     .data(sites)
     .enter()
@@ -127,7 +131,7 @@ heatmapSvg.append('g')
         .attr("r", Math.floor(cellWidth / 2))
         .attr("fill", "red")
 
-heatmapSvg.append('g')
+mapSvg.append('g')
     .selectAll("circle")
     .data([nest])
     .enter()
@@ -138,7 +142,7 @@ heatmapSvg.append('g')
         .attr("fill", "blue")
 
 
-plan_paths(matrix, nest, sites, heatmapSvg);
+plan_paths(matrix, nest, sites, mapSvg);
 
 function plan_paths(map, nest, sites, svg) {
     for (const site of sites) {
