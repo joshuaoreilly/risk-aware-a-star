@@ -1,21 +1,15 @@
-/*
-const seedText = document.getElementById("seedText");
-const seedButton = document.getElementById("seedButton");
-const seedParagraph = document.getElementById("seedParagraph");
-seedButton.addEventListener("click", updateSeed);
-function updateSeed() {
-    seedParagraph.textContent = "Seed is: " + seedText.value;
-}
-*/
-
 const riskMultiplierText = document.getElementById("riskMultiplierText");
 const maxRangeText = document.getElementById("maxRangeText");
 const planButton = document.getElementById("planButton");
 
+
+/*---------------- PLANNER SETUP ----------------*/
+
+
 const gridDim = 60;
 const KEEP_OUT_VALUE = 2;
-var HIGH_RISK_PENALTY = 1000000.0;
-var MAX_RANGE = 51.7; // It works with 51.7, but not with 52 or 60!
+var HIGH_RISK_PENALTY = riskMultiplierText.value;
+var MAX_RANGE = maxRangeText.value; // It works with 51.7, but not with 52 or 60!
 
 // https://jsfiddle.net/btjsxzo3/18/
 var rows = 60,
@@ -82,69 +76,117 @@ function matrixToArrayOfObjects(matrix) {
     return data;
 }
 
+
 var matrixObjectForm = matrixToArrayOfObjects(matrix);
 var sites = sitesDefault;
 var nest = nestDefault;
 //var sites = [{x: 0, y: 3}];
 //var nest = {x: 8, y: 3};
 
+
+/*---------------- MAP VISUALIZATION SETUP ----------------*/
+
+
+class MapView {
+    constructor(mapDiv, matrix) {
+        // https://stackoverflow.com/questions/44833788/making-svg-container-100-width-and-height-of-parent-container-in-d3-v4-instead
+        this.mapDiv = document.getElementById("map")
+
+        this.svgWidth = mapDiv.clientWidth;
+        this.svgHeight = this.svgWidth;
+        this.cellWidth = this.svgWidth / matrix[0].length;
+        this.cellHeight = this.cellWidth;
+
+        this.mapContainer = d3.select(mapDiv);
+        this.mapSvg = this.mapContainer.append("svg")
+                                        .attr("width", this.svgWidth)
+                                        .attr("height", this.svgHeight)
+                                        .append("g");
+        this.mapColorScale = d3.scaleSequential(d3.interpolateGnBu)
+                                .domain([0, d3.max(matrix, row => d3.max(row))]);
+    }
+
+    visualizeMap(matrixObjectForm) {
+        // https://stackoverflow.com/questions/17343338/difference-between-functiond-and-functiond-i
+        this.mapSvg.selectAll("rect")
+                    .data(matrixObjectForm)
+                    .enter().append("rect")
+                    .attr("x", d => d.col * this.cellWidth)
+                    .attr("y", d => d.row * this.cellHeight)
+                    .attr("width", this.cellWidth)
+                    .attr("height", this.cellHeight)
+                    .attr("fill", d => this.mapColorScale(d.value));
+    }
+
+    visualizeSites(sites) {
+        this.mapSvg.append('g')
+                .selectAll("circle")
+                .data(sites)
+                .enter()
+                .append("circle")
+                    .attr("cx", d => d.x * this.cellWidth + this.cellWidth / 2)
+                    .attr("cy", d => d.y * this.cellHeight + this.cellHeight / 2)
+                    .attr("r", Math.floor(this.cellWidth / 2))
+                    .attr("fill", "red")
+    }
+
+    visualizeNest(nest) {
+        this.mapSvg.append('g')
+                    .selectAll("circle")
+                    .data([nest])
+                    .enter()
+                    .append("circle")
+                        .attr("cx", d => d.x * this.cellWidth + this.cellWidth / 2)
+                        .attr("cy", d => d.y * this.cellHeight + this.cellHeight / 2)
+                        .attr("r", this.cellWidth)
+                        .attr("fill", "blue")
+    }
+
+    clearVisualization() {
+        this.mapSvg.selectAll("*").remove();
+    }
+
+    /**
+     * Draw path between site and nest on map
+     * @param {Object} path sequence of positions between site and nest
+     * @param {Object} svg d3 object to draw path on to
+     */
+    drawPath(path) {
+        const lineGenerator = d3.line()
+            .x(d => d.x * this.cellWidth + this.cellWidth / 2)
+            .y(d => d.y * this.cellHeight + this.cellHeight / 2);
+
+        this.mapSvg.append("path")
+                    .datum(path)
+                    .attr("d", lineGenerator(path))
+                    .attr("fill", "none")
+                    .attr("stroke", "red")
+                    .attr("stroke-width", 2);
+    }
+}
+
 // https://stackoverflow.com/questions/44833788/making-svg-container-100-width-and-height-of-parent-container-in-d3-v4-instead
-var heatDiv = document.getElementById("map")
+const riskMapDiv = document.getElementById("map")
+const mapView = new MapView(riskMapDiv, matrix);
+mapView.visualizeMap(matrixObjectForm);
+mapView.visualizeSites(sites);
+mapView.visualizeNest(nest);
 
-var svgWidth = heatDiv.clientWidth;
-var svgHeight = svgWidth;
+plan_paths(matrix, nest, sites, mapView);
 
-var cellWidth = svgWidth / matrix[0].length,
-    cellHeight = cellWidth;
+planButton.addEventListener("click", cleanAndPlan);
 
-// Data for the line chart (an array of values)
-const lineData = [20, 40, 60, 80, 100];
+function cleanAndPlan() {
+    HIGH_RISK_PENALTY = riskMultiplierText.value;
+    MAX_RANGE = maxRangeText.value; // It works with 51.7, but not with 52 or 60!
+    mapView.clearVisualization();
+    mapView.visualizeMap(matrixObjectForm);
+    mapView.visualizeSites(sites);
+    mapView.visualizeNest(nest);
+    plan_paths(matrix, nest, sites, mapView);
+}
 
-// Set up the heatmap
-const mapContainer = d3.select(heatDiv);
-const mapSvg = mapContainer.append("svg")
-    .attr("width", svgWidth)
-    .attr("height", svgHeight)
-    .append("g");
-
-const heatmapColorScale = d3.scaleSequential(d3.interpolateGnBu)
-    .domain([0, d3.max(matrix, row => d3.max(row))]);
-
-// https://stackoverflow.com/questions/17343338/difference-between-functiond-and-functiond-i
-mapSvg.selectAll("rect")
-    .data(matrixObjectForm)
-    .enter().append("rect")
-    .attr("x", d => d.col * cellWidth)
-    .attr("y", d => d.row * cellHeight)
-    .attr("width", cellWidth)
-    .attr("height", cellHeight)
-    .attr("fill", d => heatmapColorScale(d.value));
-
-// TODO: more intelligent circle radius calculation, so that it balances not being too large, but also not shrinking too much if on a smaller screen
-mapSvg.append('g')
-    .selectAll("circle")
-    .data(sites)
-    .enter()
-    .append("circle")
-        .attr("cx", d => d.x * cellWidth + cellWidth / 2)
-        .attr("cy", d => d.y * cellHeight + cellHeight / 2)
-        .attr("r", Math.floor(cellWidth / 2))
-        .attr("fill", "red")
-
-mapSvg.append('g')
-    .selectAll("circle")
-    .data([nest])
-    .enter()
-    .append("circle")
-        .attr("cx", d => d.x * cellWidth + cellWidth / 2)
-        .attr("cy", d => d.y * cellHeight + cellHeight / 2)
-        .attr("r", cellWidth)
-        .attr("fill", "blue")
-
-
-plan_paths(matrix, nest, sites, mapSvg);
-
-function plan_paths(map, nest, sites, svg) {
+function plan_paths(riskMap, nest, sites, mapView) {
     for (const site of sites) {
         var siteHash = getHash(site);
         // Distance from nest to current position along optimal path so far
@@ -173,15 +215,15 @@ function plan_paths(map, nest, sites, svg) {
             // Found delivery site, generate path
             if (currentPositionHash === siteHash) {
                 valid_path_found = true;
-                drawPath(getPath(parent, site, siteHash), svg);
+                mapView.drawPath(getPath(parent, site, siteHash));
                 break;
             }
             else {
-                var neighbors = getNeighbors(currentPosition, map);
+                var neighbors = getNeighbors(currentPosition, riskMap);
                 for (const neighbor of neighbors) {                    
                     var neighborHash = getHash(neighbor);
                     var new_cost_to_reach = cost_to_reach.get(currentPositionHash) + norm(currentPosition, neighbor);
-                    var new_cost_to_reach_penalized = cost_to_reach_penalized.get(currentPositionHash) + norm(currentPosition, neighbor) + (map[neighbor.y][neighbor.x] * HIGH_RISK_PENALTY);
+                    var new_cost_to_reach_penalized = cost_to_reach_penalized.get(currentPositionHash) + norm(currentPosition, neighbor) + (riskMap[neighbor.y][neighbor.x] * HIGH_RISK_PENALTY);
                     var new_cost_to_go = norm(neighbor, site);
                     //cost_to_go.set(neighborHash, norm(neighbor, site));
 
@@ -242,13 +284,14 @@ function norm(pos1, pos2) {
  * @param {Object} map 2D array containing risk values
  * @returns {Object}
  */
-function getNeighbors(pos, map) {
+function getNeighbors(pos, riskMap) {
     const neighbors = [
         {x: pos.x+1, y: pos.y-1}, {x: pos.x+1, y: pos.y}, {x: pos.x+1, y: pos.y+1},
         {x: pos.x, y: pos.y-1}, {x: pos.x, y: pos.y+1},
         {x: pos.x-1, y: pos.y-1}, {x: pos.x-1, y: pos.y}, {x: pos.x-1, y: pos.y+1}
     ]
    /*
+    // if using 4-connected instead of 8-connected neighboring
     const neighbors = [
         {x: pos.x+1, y: pos.y},
         {x: pos.x, y: pos.y-1}, {x: pos.x, y: pos.y+1},
@@ -257,9 +300,9 @@ function getNeighbors(pos, map) {
     */
     const valid_neighbors = [];
     for (const neighbor of neighbors) {
-        if (neighbor.x >= 0 && neighbor.x < map[0].length &&
-            neighbor.y >= 0 && neighbor.y < map.length &&
-            map[neighbor.y][neighbor.x] != KEEP_OUT_VALUE) {
+        if (neighbor.x >= 0 && neighbor.x < riskMap[0].length &&
+            neighbor.y >= 0 && neighbor.y < riskMap.length &&
+            riskMap[neighbor.y][neighbor.x] != KEEP_OUT_VALUE) {
                 valid_neighbors.push(neighbor);
         }
     }
@@ -267,6 +310,13 @@ function getNeighbors(pos, map) {
 }
 
 
+/**
+ * Get sequence of positions from nest to site
+ * @param {Object} parent hash and coordinates of parent position
+ * @param {Object} site x and y of site
+ * @param {String} siteHash hashed coordinates of site
+ * @returns Path between site and nest
+ */
 function getPath(parent, site, siteHash) {
     var path = [];
     var currentPosition = site;
@@ -280,17 +330,4 @@ function getPath(parent, site, siteHash) {
     // add the nest
     path.push(currentPosition);
     return path;
-}
-
-function drawPath(path, svg) {
-    const lineGenerator = d3.line()
-        .x(d => d.x * cellWidth + cellWidth / 2)
-        .y(d => d.y * cellHeight + cellHeight / 2);
-
-    svg.append("path")
-        .datum(path)
-        .attr("d", lineGenerator(path))
-        .attr("fill", "none")
-        .attr("stroke", "red")
-        .attr("stroke-width", 2);
 }
