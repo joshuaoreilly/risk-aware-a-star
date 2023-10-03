@@ -4,7 +4,7 @@ const planButton = document.getElementById("planButton");
 
 var KEEP_OUT_VALUE = 2;
 var HIGH_RISK_PENALTY = riskMultiplierText.value;
-var MAX_RANGE = maxRangeText.value; // It works with 51.7, but not with 52 or 60!
+var MAX_RANGE = maxRangeText.value;
 
 class MapData {
     constructor() {
@@ -28,6 +28,11 @@ class MapData {
         ]
     }
 
+    /**
+     * Create default risk map, small keep-out circle in the center,
+     * then larger high-risk circle around that.
+     * @returns 2D array of no-risk, high-risk, and keep-out zones
+     */
     getRiskValuesDefault() {
         // Fill matrix of zeros with centered keep out zone and danger zone
         // https://stackoverflow.com/questions/3689903/how-to-create-a-2d-array-of-zeroes-in-javascript
@@ -45,6 +50,11 @@ class MapData {
         return riskValues;
     }
 
+    /**
+     * Convert 2D array of risk values to 2D array of objects containing
+     * coordinates and risk values, for easier D3 ingestion.
+     * @returns Array of objects containing x and y coordinates and risk values
+     */
     matrixToArrayOfObjects() {
         var data = [];
         for (var i = 0; i < this.riskValues.length; i++) {
@@ -82,6 +92,10 @@ class MapView {
                                 .domain([0, d3.max(matrix, row => d3.max(row))]);
     }
 
+    /**
+     * Visualize risk map
+     * @param {Object} matrixObjectForm array of objects containing x-y coordinates and risk values
+     */
     visualizeMap(matrixObjectForm) {
         // https://stackoverflow.com/questions/17343338/difference-between-functiond-and-functiond-i
         this.mapSvg.selectAll("rect")
@@ -94,6 +108,10 @@ class MapView {
                     .attr("fill", d => this.mapColorScale(d.value));
     }
 
+    /**
+     * Visualize sites on risk map
+     * @param {Object} sites array of destination x-y coordinates
+     */
     visualizeSites(sites) {
         this.mapSvg.append('g')
                 .selectAll("circle")
@@ -106,6 +124,10 @@ class MapView {
                     .attr("fill", "red")
     }
 
+    /**
+     * Visualize starting position on risk map
+     * @param {Object} nest x-y coordinates of starting position (nest)
+     */
     visualizeNest(nest) {
         this.mapSvg.append('g')
                     .selectAll("circle")
@@ -136,6 +158,9 @@ class MapView {
                     .attr("stroke-width", 2);
     }
 
+    /**
+     * Erase existing SVG visualization
+     */
     clearVisualization() {
         this.mapSvg.selectAll("*").remove();
     }
@@ -145,6 +170,13 @@ class MapView {
 class PathPlanner {
     constructor() {}
 
+    /**
+     * Plan paths using risk- and max-range-aware A-Star (A*)
+     * @param {Object} riskMap 2D array of no-risk, high-risk, and keep-out zones
+     * @param {Object} nest x and y coordinates of nest (starting point)
+     * @param {Object} sites list of x and y coordinates of sites (destinations)
+     * @param {Object} mapView Visualization controller
+     */
     planPaths(riskMap, nest, sites, mapView) {
         for (const site of sites) {
             var siteHash = this.getHash(site);
@@ -184,7 +216,6 @@ class PathPlanner {
                         var new_cost_to_reach = cost_to_reach.get(currentPositionHash) + this.norm(currentPosition, neighbor);
                         var new_cost_to_reach_penalized = cost_to_reach_penalized.get(currentPositionHash) + this.norm(currentPosition, neighbor) + (riskMap[neighbor.y][neighbor.x] * HIGH_RISK_PENALTY);
                         var new_cost_to_go = this.norm(neighbor, site);
-                        //cost_to_go.set(neighborHash, norm(neighbor, site));
 
                         // Neighbor hasn't been visited or new cost to reach (w/ penalty) is lower,
                         // and the total path length (w/ norm cost-to-go) doesn't exceed max range
@@ -213,6 +244,17 @@ class PathPlanner {
         }
     }
 
+    /**
+     * Plan paths using max-range-aware (but not risk-aware) A-Star (A*)
+     * Useful for when risk-aware A-Star fails due to the maximum range
+     * being essentially a straight line passing through a high-risk area.
+     * For example, using max-range of 51.7 works, but 52 will fail for
+     * the far-left site; the backup planner works in this case though.
+     * @param {Object} riskMap 2D array of no-risk, high-risk, and keep-out zones
+     * @param {Object} nest x and y coordinates of nest (starting point)
+     * @param {Object} site x and y coordinates of a site (destination)
+     * @param {Object} mapView Visualization controller
+     */
     planPathBackup(riskMap, nest, site, mapView) {
         var siteHash = this.getHash(site);
         // Distance from nest to current position along optimal path so far
@@ -305,14 +347,6 @@ class PathPlanner {
             {x: pos.x, y: pos.y-1}, {x: pos.x, y: pos.y+1},
             {x: pos.x-1, y: pos.y-1}, {x: pos.x-1, y: pos.y}, {x: pos.x-1, y: pos.y+1}
         ]
-    /*
-        // if using 4-connected instead of 8-connected neighboring
-        const neighbors = [
-            {x: pos.x+1, y: pos.y},
-            {x: pos.x, y: pos.y-1}, {x: pos.x, y: pos.y+1},
-            {x: pos.x-1, y: pos.y}
-        ]
-        */
         const valid_neighbors = [];
         for (const neighbor of neighbors) {
             if (neighbor.x >= 0 && neighbor.x < riskMap[0].length &&
@@ -347,7 +381,10 @@ class PathPlanner {
     }
 }
 
-
+/**
+ * Remove existing SVG visualization, redraw map, sites, nest,
+ * then plan paths and visualize them
+ */
 function cleanAndPlan() {
     HIGH_RISK_PENALTY = riskMultiplierText.value;
     MAX_RANGE = maxRangeText.value;
