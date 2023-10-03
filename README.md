@@ -1,5 +1,11 @@
 # Risk-Aware Path Planning with A-Star
 
+## Interactive Planner
+
+There's now an interactive planner available on [my website](https://joshuaoreilly.com/Projects/a-star-mod.html)!
+
+## Context
+
 An interview take-home once asked me to design a path planning algorithm that was risk-aware; essentially, the robot, operating on an 8-connected grid, had to get from a starting coordinate to a destination coordinate, balancing the number of steps it takes to reach the objective and entering into a Keep Out zone.
 My Path Planning and Decision Making professor once said that A-Star (A\*) is the bread and butter of basic path planning, so I started with that and added a penalty term and weight which could be used to pull the robot out of risky areas.
 The code in this repo is only my portion, and won't run without the remainder provided by the company.
