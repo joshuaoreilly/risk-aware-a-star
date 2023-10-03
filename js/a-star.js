@@ -204,12 +204,71 @@ class PathPlanner {
                 }
             }
             if (! valid_path_found) {
-                console.log("No valid path found for site " + siteHash);
+                console.log("No valid path found for site " + siteHash + ", recalculating without high risk multiplier");
+                this.planPathBackup(riskMap, nest, site, mapView);
             }
             else {
                 console.log("Valid path found for site " + siteHash);
             }
-        //break;
+        }
+    }
+
+    planPathBackup(riskMap, nest, site, mapView) {
+        var siteHash = this.getHash(site);
+        // Distance from nest to current position along optimal path so far
+        var cost_to_reach = new Map();
+        // (Heuristic) distance from current position to delivery site, as the crow flies
+        var cost_to_go = new Map();
+        // Coordinates of previous point in the optimal path to the current position
+        parent = new Map();
+        // List of position to visit, sorted by lowest combined cost-to-go and cost-to-reach (w/ penalty)
+        const to_visit = new FlatQueue();
+
+        // Initialize with nest as current position
+        const nestHash = this.getHash(nest);
+        cost_to_reach.set(nestHash, 0.0);
+        cost_to_go.set(nestHash, this.norm(nest, site));
+        parent.set(nestHash, null);
+        to_visit.push(nest, cost_to_reach.get(nestHash) + cost_to_go.get(nestHash));
+
+        var valid_path_found = false;
+        while (to_visit.length != 0) {
+            var currentPosition = to_visit.pop();
+            var currentPositionHash = this.getHash(currentPosition);
+            // Found delivery site, generate path
+            if (currentPositionHash === siteHash) {
+                valid_path_found = true;
+                mapView.drawPath(this.getPath(parent, site, siteHash));
+                break;
+            }
+            else {
+                var neighbors = this.getNeighbors(currentPosition, riskMap);
+                for (const neighbor of neighbors) {                    
+                    var neighborHash = this.getHash(neighbor);
+                    var new_cost_to_reach = cost_to_reach.get(currentPositionHash) + this.norm(currentPosition, neighbor);
+                    var new_cost_to_go = this.norm(neighbor, site);
+
+                    // Neighbor hasn't been visited or new cost to reach is lower,
+                    // and the total path length (w/ norm cost-to-go) doesn't exceed max range
+                    if ((!cost_to_reach.has(neighborHash) || new_cost_to_reach < cost_to_reach.get(neighborHash)) &&
+                        (new_cost_to_reach + new_cost_to_go <= MAX_RANGE)) {
+                            cost_to_reach.set(neighborHash, new_cost_to_reach);
+                            cost_to_go.set(neighborHash, new_cost_to_go);
+                            parent.set(neighborHash,
+                                {  
+                                    parentHash: currentPositionHash,
+                                    parentPosition: currentPosition
+                                });
+                            to_visit.push(neighbor, new_cost_to_reach + cost_to_go.get(neighborHash));
+                    }
+                }
+            }
+        }
+        if (! valid_path_found) {
+            console.log("No valid path found for site " + siteHash + " even without high risk penalty");
+        }
+        else {
+            console.log("Valid path found for site " + siteHash + " without high risk penalty");
         }
     }
 
